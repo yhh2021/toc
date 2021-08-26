@@ -125,56 +125,71 @@ void chessman_swap(chessman_t *a, chessman_t *b)
     *b = t;
 }
 
-void mirror_v(chessman_t *board)
-{
-    uint col;
-    for (col = 0; col < 3; ++col)
-       chessman_swap(board + pos(0, col), board + pos(2, col));
-}
-
-void mirror_h(chessman_t *board)
-{
-    uint row;
-    for (row = 0; row < 3; ++row)
-       chessman_swap(board + pos(row, 0), board + pos(row, 2));
-}
-
 #if 0
 123   321    789    987
-456   654 h  456 v  654 hv=vh=X   Xh=v
+456   654 v  456 h  654 hv=vh=X   Xh=v
 789   987    123    321           Xv=h
  s
       741    987
-      852 r  654 rr=hv=X  rh=d1
+      852 r  654 rr=X  rh=d1, therefore rrl=Xl=r
       963    321
 
       369    987
-      258 l  654 ll=X
+      258 l  654 ll=X therefore llr=Xr=l
       147    321
 
       147    963
-      258 d1 852 d2=lh
+      258 d1 852 d2=lv=rh
       369    741
-#endif
 
+s, h, v,
+r, l,
+X=hv=vh=rr=ll
+d1=rv=lh, d2=lv=rh  (d1v=lhv=lX=r, d2v=rhv=rX=l)
+
+    rv = lh
+    rvh = l
+    rX = l
+
+
+Sum up:
+s, h, v, r,
+l, X, d1, d2
+[8]
+#endif
+/* (x, y) = (row, col)
+ * x' = 2-x, y' = 2-y
+ * (x, y)' = (y, x)
+ *
+ * h: -> (2-x, y) = (x', y)
+ * v: -> (x, 2-y) = (x, y')
+ * r: -> (y, x)   = (x, y)'
+ * l: -> (2-y, x) = (x, y')'
+ *
+ * hr -> (y, 2-x) = (x', y)'
+ * hl -> (2-y, 2-x) = (x', y')'
+ * hv -> (2-x, 2-y) = (x', y')
+ * rl -> (2-x, y) = (x', y) = h
+ */
+
+void mirror(chessman_t *board, bool x, bool y, bool q)
+{
+    uint r, c;
+    chessman_t b2[9];
+    for (r = 0; r < 3; ++r)
+        for (c = 0; c < 3; ++c)
+        {
+            uint r1 = x ? r : 2 - r,
+                 c1 = y ? c : 2 - c;
+            b2[pos(r, c)] = board[q ? (r1, c1) : (c1, r1)]
+        }
+    memcpy(board, b2, sizeof b2);
+}
 
 int *board_to_equal_codes(chessman_t *board)
-    /* 迭代
-     * 返回-1结束
-     * 必须迭代完成
-     *
-     * 剪枝：对称局面都归为最小的一个编码
-     * 因为局面太多的话关系图放不下
-     * 对称局面：纵向+横向+两个方向转90度+对角线
-     *
-     * h：沿横轴对称 v
-     * R90 (r), L90 (l)
-     * R180 = L180 = hv = vh
-     * 对角线d1=lv, d2=rv
-     * d1h=r=lvh, d2h=l=rvh
-     * 于是可以证明只有这么多种镜像 */
+    /* 迭代，剪枝，返回-1结束 */
 {
-    static int code_list[5], *p;
+    static int code_list[9], *p;
 
     if (board)
         /* 首次调用 */
