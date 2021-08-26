@@ -3,6 +3,7 @@ all:
 
 debug:
 	c89 toc.c -g
+	gdb a.out
 
 callgraph:
 	c89 -fdump-rtl-expand toc.c

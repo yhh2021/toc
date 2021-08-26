@@ -118,6 +118,20 @@ uint encode_board_real(chessman_t *board)
     return code;
 }
 
+chessman_t *decode_board(uint code)
+{
+    static chessman_t board[9];
+    uint i;
+
+    for (i = 0; i < 9; ++i)
+    {
+        board[i] = code % 3;
+        code /= 3;
+    }
+
+    return board;
+}
+
 void chessman_swap(chessman_t *a, chessman_t *b)
 {
     chessman_t t = *a;
@@ -203,8 +217,20 @@ int board_to_equal_codes(chessman_t *board)
             for (y = 0; y < 2; ++y)
                 for (q = 0; q < 2; ++q)
                 {
+                    int c, *t;
+                    bool dup = 0;
+
                     mirror(board_copy, x, y, q);
-                    *p++ = encode_board_real(board_copy);
+                    c = encode_board_real(board_copy);
+                    for (t = code_list; t != p; ++t)
+                        if (*t == c) /* 查重 */
+                        {
+                            dup = 1;
+                            break;
+                        }
+
+                    if (!dup)
+                        *p++ = c;
                 }
         *p = -1;
         p = code_list;
@@ -268,7 +294,19 @@ void draw(chessman_t me, result_t result)
 
 void illustrate_code(uint code)
 {
-    /* TODO */
+    code = board_to_equal_codes(decode_board(code));
+    draw2(decode_board(code), -1, -1, stdout, 0);
+    putchar('\n');
+
+    while (1)
+    {
+        int i = board_to_equal_codes(0);
+        if (i == -1)
+            break;
+        printf("%d", i);
+        /* draw2(decode_board(i), -1, -1, stdout, 0); */
+        putchar('\n');
+    }
 }
 
 result_t status(chessman_t me)
