@@ -22,6 +22,11 @@ int max(int a, int b)
     return a > b ? a : b;
 }
 
+int min(int a, int b)
+{
+    return a < b ? a : b;
+}
+
 uint pos(uint row, uint col)
 {
     return row * 3 + col;
@@ -95,15 +100,63 @@ char *fmtresult(result_t r)
     return text[r+1];
 }
 
-uint encode_board(void)
+uint encode_board_real(chessman_t *board)
 {
     /* 将棋盘以3进数编码
      * 总空间：3^9 = 19683 */
-    int i, pow = 1, sum = 0;
-    for (i = 0; i < 9; ++i, pow *= 3)
-        sum += pow * board[i];
+    uint i, pow = 1, code = 0;
 
-    return sum;
+    for (i = 0; i < 9; ++i, pow *= 3)
+        code += pow * board[i];
+
+    return code;
+}
+
+void chessman_swap(chessman_t *a, chessman_t *b)
+{
+    chessman_t t = *a;
+    *a = *b;
+    *b = t;
+}
+
+void mirror_v(chessman_t *board)
+{
+    uint col;
+    for (col = 0; col < 3; ++col)
+       chessman_swap(board + pos(0, col), board + pos(2, col));
+}
+
+void mirror_h(chessman_t *board)
+{
+    uint row;
+    for (row = 0; row < 3; ++row)
+       chessman_swap(board + pos(row, 0), board + pos(row, 2));
+}
+
+uint encode_board(void)
+{
+    /* 剪枝：对称局面都归为最小的一个编码
+     * 因为局面太多的话关系图放不下
+     * 对称局面：纵向+横向+两种对角线镜像
+     *
+     * 下上对角=上下.左右
+     * 上下对角=左右.上下
+     * 于是可以证明只存在四种镜像 */
+    uint code;
+    chessman_t board_copy[9];
+    memcpy(board_copy, board, sizeof board_copy);
+
+    code = encode_board_real(board_copy); /* 原 */
+    mirror_v(board_copy);
+    code = min(code, encode_board_real(board_copy)); /* v */
+    mirror_h(board_copy);
+    code = min(code, encode_board_real(board_copy)); /* vh */
+    mirror_v(board_copy);
+    code = min(code, encode_board_real(board_copy)); /* h */
+    mirror_v(board_copy);
+    code = min(code, encode_board_real(board_copy)); /* hv */
+
+    return code;
 }
 
 void draw(chessman_t me, result_t result)
