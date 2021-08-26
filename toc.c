@@ -165,20 +165,21 @@ l, X, d1, d2
  * s: (x, y)
  */
 void mirror(chessman_t *board, bool x, bool y, bool q)
+    /* 1: u, 0: u' */
 {
     uint r, c;
     chessman_t b2[9];
     for (r = 0; r < 3; ++r)
         for (c = 0; c < 3; ++c)
         {
-            uint r1 = x ? r : 2 - r,
-                 c1 = y ? c : 2 - c;
+            uint r1 = x ? r : 2-r,
+                 c1 = y ? c : 2-c;
             b2[pos(r, c)] = board[q ? pos(r1, c1) : pos(c1, r1)];
         }
     memcpy(board, b2, sizeof b2);
 }
 
-int board_to_equal_codes_IMPURE(chessman_t *board)
+int board_to_equal_codes_RSTATIC(chessman_t *board)
     /* 迭代，剪枝，返回-1结束 */
 {
     static int code_list[9], *p;
@@ -219,18 +220,18 @@ int board_to_equal_codes_IMPURE(chessman_t *board)
 int *board_to_equal_codes_a(chessman_t *board) /* alloc */
 {
     int *code_list = malloc(sizeof (int[9])), *p = code_list;
-    *p++ = board_to_equal_codes_IMPURE(board);
-    while ((*p++ = board_to_equal_codes_IMPURE(0)) != -1);
+    *p++ = board_to_equal_codes_RSTATIC(board);
+    while ((*p++ = board_to_equal_codes_RSTATIC(0)) != -1);
     return code_list;
 }
 
 uint encode_board_min(chessman_t *board)
 {
-    uint code = board_to_equal_codes_IMPURE(board);
+    uint code = board_to_equal_codes_RSTATIC(board);
 
     while (1)
     {
-        int i = board_to_equal_codes_IMPURE(0);
+        int i = board_to_equal_codes_RSTATIC(0);
         if (i == -1)
             break;
         code = min(i, code);
@@ -281,11 +282,14 @@ void illustrate_code(uint code)
 {
     int *codes = board_to_equal_codes_a(decode_board_RSTATIC(code)),
         *p = codes;
+
+    printf("@%u\n", *p);
     draw2(decode_board_RSTATIC(*p++), -1, -1, stdout, 0);
     putchar('\n');
 
     for (; *p != -1;)
     {
+        printf("@%u\n", *p);
         draw2(decode_board_RSTATIC(*p++), -1, -1, stdout, 0);
         putchar('\n');
     }
@@ -425,6 +429,23 @@ void test_coding(void) /* 棋盘编码测试 */
     }
 }
 
+void test_encode(void)
+{
+    chessman_t b[9];
+    b[0] = b[2] = b[3] = b[6] = b[7] = EMPTY;
+    b[1] = b[4] = b[8] = BLACK;
+    b[5] = WHITE;
+
+    printf("Encode: %u\nEncode-min: %u\n\n",
+            encode_board_real(b),
+            encode_board_min(b));
+    draw2(b, -1, -1, stdout, 0);
+    putchar('\n');
+    mirror(b, 0, 1, 1);
+    draw2(b, -1, -1, stdout, 0);
+    putchar('\n');
+}
+
 
 int main(int argc, char **argv)
 {
@@ -433,13 +454,21 @@ int main(int argc, char **argv)
         do_search();
     else if (argc == 2)
     {
-        if (argv[1][0] == 't')
-            test_coding();
-        else
+        switch (argv[1][0])
         {
+        case 't':
+            test_coding();
+            break;
+        case 'T':
+            test_encode();
+            break;
+        default:
+            {
             uint code;
             sscanf(argv[1], "%d", &code);
             illustrate_code(code);
+            break;
+            }
         }
     }
 
