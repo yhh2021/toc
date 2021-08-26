@@ -157,21 +157,22 @@ s, h, v, r,
 l, X, d1, d2
 [8]
 #endif
+
 /* (x, y) = (row, col)
  * x' = 2-x, y' = 2-y
  * (x, y)' = (y, x)
  *
- * h: -> (2-x, y) = (x', y)
- * v: -> (x, 2-y) = (x, y')
- * r: -> (y, x)   = (x, y)'
- * l: -> (2-y, x) = (x, y')'
+ * h: -> (2-x, y) = (x', y) = x'
+ * v: -> (x, 2-y) = (x, y') = y'
+ * r: -> (y, x)   = (x, y)' = (,)'
+ * l: -> (2-y, x) = (x, y')' = vr
  *
- * hr -> (y, 2-x) = (x', y)'
- * hl -> (2-y, 2-x) = (x', y')'
+ * hr -> (y, 2-x) = (x', y)' = hr
+ * hl -> (2-y, 2-x) = (x', y')' = hvr
  * hv -> (2-x, 2-y) = (x', y')
  * rl -> (2-x, y) = (x', y) = h
+ * s: (x, y)
  */
-
 void mirror(chessman_t *board, bool x, bool y, bool q)
 {
     uint r, c;
@@ -181,12 +182,12 @@ void mirror(chessman_t *board, bool x, bool y, bool q)
         {
             uint r1 = x ? r : 2 - r,
                  c1 = y ? c : 2 - c;
-            b2[pos(r, c)] = board[q ? (r1, c1) : (c1, r1)]
+            b2[pos(r, c)] = board[q ? pos(r1, c1) : pos(c1, r1)];
         }
     memcpy(board, b2, sizeof b2);
 }
 
-int *board_to_equal_codes(chessman_t *board)
+int board_to_equal_codes(chessman_t *board)
     /* 迭代，剪枝，返回-1结束 */
 {
     static int code_list[9], *p;
@@ -195,21 +196,21 @@ int *board_to_equal_codes(chessman_t *board)
         /* 首次调用 */
     {
         chessman_t board_copy[9];
+        bool x, y, q;
         memcpy(board_copy, board, sizeof board_copy);
         p = code_list;
-        *p++ = encode_board_real(board_copy); /* 原 */
-        mirror_v(board_copy);
-        *p++ = encode_board_real(board_copy); /* v */
-        mirror_v(board_copy);
-        mirror_h(board_copy);
-        *p++ = encode_board_real(board_copy); /* h */
-        mirror_v(board_copy);
-        *p++ = encode_board_real(board_copy); /* hv */
+        for (x = 0; x < 2; ++x)
+            for (y = 0; y < 2; ++y)
+                for (q = 0; q < 2; ++q)
+                {
+                    mirror(board_copy, x, y, q);
+                    *p++ = encode_board_real(board_copy);
+                }
         *p = -1;
         p = code_list;
     }
-    else
-        return *p++;
+
+    return *p++;
 }
 
 uint encode_board2(chessman_t *board)
@@ -220,7 +221,7 @@ uint encode_board2(chessman_t *board)
     {
         int i = board_to_equal_codes(0);
         if (i == -1)
-            break
+            break;
         code = min(i, code);
     }
 
@@ -267,7 +268,7 @@ void draw(chessman_t me, result_t result)
 
 void illustrate_code(uint code)
 {
-    // TODO
+    /* TODO */
 }
 
 result_t status(chessman_t me)
@@ -374,7 +375,6 @@ void close_fdot(void)
 
 void do_search(void)
 {
-    double r;
     init_board();
     init_fdot();
     search(BLACK);
