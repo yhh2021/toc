@@ -1,6 +1,13 @@
 /* 井字棋搜索
  * minimax/negamax
  */
+
+#if 0
+TODO:
+
+1. 自动输出到toc.out，不用用户重定向了。（谁会在shell里看那么长的东西？）
+2. 加一个功能，检测encode对不对。输入数字编码，输出所有种类的图
+#endif
 #include <float.h>
 #include <limits.h>
 #include <stdio.h>
@@ -212,9 +219,11 @@ result_t fdot_print_result(uint code, result_t result)
     char  *colour_table[] = { "red", "blue", "black" };
     uint fontsize_table[] = { 15, 15, 15 };
 
+/*
     fprintf(fdot, "%u [label=\"%u (%s)\", color=%s, fontsize=%u];\n",
             code, code, fmtresult(result),
             colour_table[result + 1], fontsize_table[result + 1]);
+ */
     return result;
 }
 
