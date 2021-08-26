@@ -5,7 +5,6 @@
 #if 0
 TODO:
 
-1. 自动输出到toc.out，不用用户重定向了。（谁会在shell里看那么长的东西？）
 2. 加一个功能，检测encode对不对。输入数字编码，输出所有种类的图
 #endif
 #include <float.h>
@@ -21,8 +20,8 @@ typedef enum { DRAW,  WIN=1, LOST=-1  } result_t;
      * 所以评价结果是离散的 */
 
 chessman_t board[9]; /* chessboard[row*3 + col] */
-char *dot_filename = "toc.dot";
-FILE *fdot;
+char *dot_filename = "toc.dot",  *out_filename = "toc.out";
+FILE *fdot, *fout;
 
 int max(int a, int b)
 {
@@ -140,33 +139,86 @@ void mirror_h(chessman_t *board)
        chessman_swap(board + pos(row, 0), board + pos(row, 2));
 }
 
-uint encode_board(void)
-{
-    /* 剪枝：对称局面都归为最小的一个编码
-     * 因为局面太多的话关系图放不下
-     * 对称局面：纵向+横向+两种对角线镜像
-     *
-     * 下上对角=上下.左右
-     * 上下对角=左右.上下
-     * 于是可以证明只存在四种镜像 */
-    uint code;
-    chessman_t board_copy[9];
-    memcpy(board_copy, board, sizeof board_copy);
+#if 0
+123   321    789    987
+456   654 h  456 v  654 hv=vh=X   Xh=v
+789   987    123    321           Xv=h
+ s
+      741    987
+      852 r  654 rr=hv=X  rh=d1
+      963    321
 
-    code = encode_board_real(board_copy); /* 原 */
-    mirror_v(board_copy);
-    code = min(code, encode_board_real(board_copy)); /* v */
-    mirror_h(board_copy);
-    code = min(code, encode_board_real(board_copy)); /* vh */
-    mirror_v(board_copy);
-    code = min(code, encode_board_real(board_copy)); /* h */
-    mirror_v(board_copy);
-    code = min(code, encode_board_real(board_copy)); /* hv */
+      369    987
+      258 l  654 ll=X
+      147    321
+
+      147    963
+      258 d1 852 d2=lh
+      369    741
+#endif
+
+
+int *board_to_equal_codes(chessman_t *board)
+    /* 迭代
+     * 返回-1结束
+     * 必须迭代完成
+     *
+     * 剪枝：对称局面都归为最小的一个编码
+     * 因为局面太多的话关系图放不下
+     * 对称局面：纵向+横向+两个方向转90度+对角线
+     *
+     * h：沿横轴对称 v
+     * R90 (r), L90 (l)
+     * R180 = L180 = hv = vh
+     * 对角线d1=lv, d2=rv
+     * d1h=r=lvh, d2h=l=rvh
+     * 于是可以证明只有这么多种镜像 */
+{
+    static int code_list[5], *p;
+
+    if (board)
+        /* 首次调用 */
+    {
+        chessman_t board_copy[9];
+        memcpy(board_copy, board, sizeof board_copy);
+        p = code_list;
+        *p++ = encode_board_real(board_copy); /* 原 */
+        mirror_v(board_copy);
+        *p++ = encode_board_real(board_copy); /* v */
+        mirror_v(board_copy);
+        mirror_h(board_copy);
+        *p++ = encode_board_real(board_copy); /* h */
+        mirror_v(board_copy);
+        *p++ = encode_board_real(board_copy); /* hv */
+        *p = -1;
+        p = code_list;
+    }
+    else
+        return *p++;
+}
+
+uint encode_board2(chessman_t *board)
+{
+    uint code = board_to_equal_codes(board);
+
+    while (1)
+    {
+        int i = board_to_equal_codes(0);
+        if (i == -1)
+            break
+        code = min(i, code);
+    }
 
     return code;
 }
 
-void draw(chessman_t me, result_t result)
+uint encode_board(void)
+{
+    return encode_board2(board);
+}
+
+void draw2(chessman_t *board, chessman_t me, result_t result,
+           FILE *to, bool inf)
 {
     uint i;
 
@@ -176,18 +228,31 @@ void draw(chessman_t me, result_t result)
 
     for (i = 0; i < 9; ++i)
     {
-        putchar(chessman_char(board[i]));
+        fputc(chessman_char(board[i]), to);
 
         if (i == 2)
-            printf("  #%d", encode_board());
-        else if (i == 5)
-            printf("  轮到%c走棋", chessman_char(me));
-        else if (i == 8)
-            printf("  %s", fmtresult(result));
+            fprintf(to, "  #%d", encode_board2(board));
+        else if (inf)
+        {
+            if (i == 5)
+                fprintf(to, "  轮到%c走棋", chessman_char(me));
+            else if (i == 8)
+                fprintf(to, "  %s", fmtresult(result));
+        }
 
         if ((i + 1) % 3 == 0)
-            putchar('\n');
+            fputc('\n', to);
     }
+}
+
+void draw(chessman_t me, result_t result)
+{
+    draw2(board, me, result, fout, 1);
+}
+
+void illustrate_code(uint code)
+{
+    // TODO
 }
 
 result_t status(chessman_t me)
@@ -261,7 +326,7 @@ result_t search(chessman_t me) /* 搜索走法，给出当前局面的结果
 
     /* 输出棋盘 */
     draw(me, result);
-    putchar('\n');
+    fputc('\n', fout);
 
     return result;
 }
@@ -282,20 +347,36 @@ void init_fdot(void)
 {
     fdot = fopen(dot_filename, "w");
     fputs("digraph d {\n", fdot);
+    fout = fopen(out_filename, "w");
 }
 
 void close_fdot(void)
 {
     fputs("}\n", fdot);
     fclose(fdot);
+    fclose(fout);
 }
 
-int main(void)
+void do_search(void)
 {
     double r;
     init_board();
     init_fdot();
     search(BLACK);
     close_fdot();
+}
+
+
+int main(int argc, char **argv)
+{
+    if (argc == 1)
+        do_search();
+    else if (argc == 2)
+    {
+        uint code;
+        sscanf(argv[1], "%d", &code);
+        illustrate_code(code);
+    }
+
     return 0;
 }
