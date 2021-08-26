@@ -109,6 +109,11 @@ uint encode_board(void)
 void draw(chessman_t me, result_t result)
 {
     uint i;
+
+    /* 按照黑子方来看result */
+    if (me == WHITE)
+        result *= -1;
+
     for (i = 0; i < 9; ++i)
     {
         putchar(chessman_char(board[i]));
@@ -183,12 +188,12 @@ result_t search(chessman_t me) /* 搜索走法，给出当前局面的结果
         }
 
     /* 输出局面关系 */
-    if (*sub_board_p)
+    if (*--sub_board_p)
     {
         fprintf(fdot, "%d -> {", board_code);
         while (sub_board_p != sub_boards - 1)
             fprintf(fdot, "%d ", *sub_board_p--);
-        fputs("};", fdot);
+        fputs("};\n", fdot);
     }
     fdot_print_result(board_code, result);
 
@@ -214,12 +219,12 @@ OXX
 void init_fdot(void)
 {
     fdot = fopen(dot_filename, "w");
-    fputs("digraph d {", fdot);
+    fputs("digraph d {\n", fdot);
 }
 
 void close_fdot(void)
 {
-    fputs("}", fdot);
+    fputs("}\n", fdot);
     fclose(fdot);
 }
 
