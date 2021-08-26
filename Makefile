@@ -10,3 +10,6 @@ callgraph:
 	egypt --include-external toc.c.233r.expand > toc.c.call.dot
 	dot -Tsvg -O toc.c.call.dot
 	xdg-open toc.c.call.dot.svg
+
+release:
+	cproto toc.c > toc.proto

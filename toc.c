@@ -1,52 +1,29 @@
 /* 井字棋搜索
  * minimax/negamax
  */
-
-#if 0
-TODO:
-
-2. 加一个功能，检测encode对不对。输入数字编码，输出所有种类的图
-#endif
 #include <float.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 typedef unsigned int uint;
 typedef int bool;
 typedef enum { EMPTY, BLACK, WHITE    } chessman_t;
 typedef enum { DRAW,  WIN=1, LOST=-1  } result_t;
     /* 井字棋的搜索空间小，可以完全搜索
-     * 所以评价结果是离散的 */
+     * 所以局面评价是离散的 */
 
-chessman_t board[9]; /* chessboard[row*3 + col] */
+chessman_t board[9]; /* [row*3 + col] */
 char *dot_filename = "toc.dot",  *out_filename = "toc.out";
 FILE *fdot, *fout;
 
-int max(int a, int b)
-{
-    return a > b ? a : b;
-}
-
-int min(int a, int b)
-{
-    return a < b ? a : b;
-}
-
-uint pos(uint row, uint col)
-{
-    return row * 3 + col;
-}
-
-bool eq3(uint a, uint b, uint c)
-{
-    return a == b && b == c;
-}
-
-chessman_t bd(uint row, uint col)
-{
-    return board[pos(row, col)];
-}
+int max(int a, int b) { return a > b ? a : b; }
+int min(int a, int b) { return a < b ? a : b; }
+uint pos(uint row, uint col) { return row * 3 + col; }
+bool eq3(uint a, uint b, uint c) { return a == b && b == c; }
+chessman_t bd(uint row, uint col) { return board[pos(row, col)]; }
 
 bool eq3bd(uint r1, uint c1, uint r2, uint c2, uint r3, uint c3)
 {
@@ -78,7 +55,7 @@ chessman_t situation(void) /* 返回胜方
 
 bool full(void) /* 棋盘是否已满 */
 {
-    int i;
+    uint i;
     for (i = 0; i < 9; ++i)
         if (!board[i])
             return 0;
@@ -118,7 +95,7 @@ uint encode_board_real(chessman_t *board)
     return code;
 }
 
-chessman_t *decode_board(uint code)
+chessman_t *decode_board_RSTATIC(uint code)
 {
     static chessman_t board[9];
     uint i;
@@ -201,7 +178,7 @@ void mirror(chessman_t *board, bool x, bool y, bool q)
     memcpy(board, b2, sizeof b2);
 }
 
-int board_to_equal_codes(chessman_t *board)
+int board_to_equal_codes_IMPURE(chessman_t *board)
     /* 迭代，剪枝，返回-1结束 */
 {
     static int code_list[9], *p;
@@ -239,13 +216,21 @@ int board_to_equal_codes(chessman_t *board)
     return *p++;
 }
 
-uint encode_board2(chessman_t *board)
+int *board_to_equal_codes_a(chessman_t *board) /* alloc */
 {
-    uint code = board_to_equal_codes(board);
+    int *code_list = malloc(sizeof (int[9])), *p = code_list;
+    *p++ = board_to_equal_codes_IMPURE(board);
+    while ((*p++ = board_to_equal_codes_IMPURE(0)) != -1);
+    return code_list;
+}
+
+uint encode_board_min(chessman_t *board)
+{
+    uint code = board_to_equal_codes_IMPURE(board);
 
     while (1)
     {
-        int i = board_to_equal_codes(0);
+        int i = board_to_equal_codes_IMPURE(0);
         if (i == -1)
             break;
         code = min(i, code);
@@ -256,7 +241,7 @@ uint encode_board2(chessman_t *board)
 
 uint encode_board(void)
 {
-    return encode_board2(board);
+    return encode_board_min(board);
 }
 
 void draw2(chessman_t *board, chessman_t me, result_t result,
@@ -273,7 +258,7 @@ void draw2(chessman_t *board, chessman_t me, result_t result,
         fputc(chessman_char(board[i]), to);
 
         if (i == 2)
-            fprintf(to, "  #%d", encode_board2(board));
+            fprintf(to, "  #%d", encode_board_min(board));
         else if (inf)
         {
             if (i == 5)
@@ -294,19 +279,18 @@ void draw(chessman_t me, result_t result)
 
 void illustrate_code(uint code)
 {
-    code = board_to_equal_codes(decode_board(code));
-    draw2(decode_board(code), -1, -1, stdout, 0);
+    int *codes = board_to_equal_codes_a(decode_board_RSTATIC(code)),
+        *p = codes;
+    draw2(decode_board_RSTATIC(*p++), -1, -1, stdout, 0);
     putchar('\n');
 
-    while (1)
+    for (; *p != -1;)
     {
-        int i = board_to_equal_codes(0);
-        if (i == -1)
-            break;
-        printf("%d", i);
-        /* draw2(decode_board(i), -1, -1, stdout, 0); */
+        draw2(decode_board_RSTATIC(*p++), -1, -1, stdout, 0);
         putchar('\n');
     }
+
+    free(codes);
 }
 
 result_t status(chessman_t me)
@@ -419,16 +403,44 @@ void do_search(void)
     close_fdot();
 }
 
+void test_coding(void) /* 棋盘编码测试 */
+{
+    chessman_t board[9];
+    uint i, c;
+
+    for (c = 0; ; ++c)
+    {
+        uint code;
+        for (i = 0; i < 9; ++i)
+            board[i] = rand() % 3;
+        code = encode_board_real(board);
+        printf("\r%u", code);
+
+        if (memcmp(board, decode_board_RSTATIC(code), sizeof board)
+                != 0)
+        {
+            puts(" fails");
+            break;
+        }
+    }
+}
+
 
 int main(int argc, char **argv)
 {
+    srand(time(0));
     if (argc == 1)
         do_search();
     else if (argc == 2)
     {
-        uint code;
-        sscanf(argv[1], "%d", &code);
-        illustrate_code(code);
+        if (argv[1][0] == 't')
+            test_coding();
+        else
+        {
+            uint code;
+            sscanf(argv[1], "%d", &code);
+            illustrate_code(code);
+        }
     }
 
     return 0;
