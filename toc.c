@@ -79,7 +79,7 @@ char chessman_char(chessman_t c)
 
 char *fmtresult(result_t r)
 {
-    char *text[] = { "-lost", "0draw", "+win" };
+    char *text[] = { "负", "平", "胜" };
     if (0 <= r+1 && r+1 <= 2)
         return text[r+1];
     return 0;
@@ -337,19 +337,18 @@ result_t fdot_print_result(uint code, result_t result)
     return result;
 }
 
+typedef struct {
+    uint c;
+    result_t r;
+} board_t;
+
 result_t search(chessman_t me) /* 搜索走法，给出当前局面的结果
                                   下一着是我方走棋
                                   调用者保证目前不是终局 */
 {
     uint i;
-    struct {
-        uint c;
-        result_t r;
-    } sub_boards[9], *sub_board_p = sub_boards,
+    board_t sub_boards[9], *sub_board_p = sub_boards,
       self = { encode_board(), LOST };
-    memset(sub_boards, 0, sizeof sub_boards);
-        /* 只要走了棋，局面的3进数编码就不可能是0
-         * 所以用0代表没有数据 */
 
     /* 因为不是终局，所以棋盘肯定不满，于是总是有棋可走 */
     for (i = 0; i < 9; ++i)
@@ -368,15 +367,17 @@ result_t search(chessman_t me) /* 搜索走法，给出当前局面的结果
     draw(me, self.r);
 
     /* 输出局面关系 */
-    if ((--sub_board_p)->c)
+    if (--sub_board_p != sub_boards-1)
     {
+        qsort(sub_boards, sub_board_p - sub_boards + 1,
+              sizeof sub_boards[0], board_t_cmp); /* 排序，方便查重 */
         fprintf(fdot, "%d -> {", self.c);
         fprintf(fout, "  -> ");
         while (sub_board_p != sub_boards - 1)
         {
-            uint c = (sub_board_p--)->c;
-            fprintf(fdot, "%d ", c);
-            fprintf(fout, "%d ", c);
+            board_t *b = sub_board_p--;
+            fprintf(fdot, "%d ", b->c);
+            fprintf(fout, "%d%s ", b->c, fmtresult(b->r));
         }
         fputs("};\n", fdot);
         fputc('\n', fout);
