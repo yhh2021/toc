@@ -179,7 +179,7 @@ void mirror(chessman_t *board, bool x, bool y, bool q)
     memcpy(board, b2, sizeof b2);
 }
 
-int board_to_equal_codes_RSTATIC(chessman_t *board)
+int board_to_equal_codes_RSTATIC(const chessman_t *board)
     /* 迭代，剪枝，返回-1结束 */
 {
     static int code_list[9], *p;
@@ -187,9 +187,7 @@ int board_to_equal_codes_RSTATIC(chessman_t *board)
     if (board)
         /* 首次调用 */
     {
-        chessman_t board_copy[9];
         bool x, y, q;
-        memcpy(board_copy, board, sizeof board_copy);
         p = code_list;
         for (x = 0; x < 2; ++x)
             for (y = 0; y < 2; ++y)
@@ -197,9 +195,11 @@ int board_to_equal_codes_RSTATIC(chessman_t *board)
                 {
                     int c, *t;
                     bool dup = 0;
+                    chessman_t b[9];
 
-                    mirror(board_copy, x, y, q);
-                    c = encode_board_real(board_copy);
+                    memcpy(b, board, sizeof b);
+                    mirror(b, x, y, q);
+                    c = encode_board_real(b);
                     for (t = code_list; t != p; ++t)
                         if (*t == c) /* 查重 */
                         {
@@ -259,7 +259,8 @@ void draw2(chessman_t *board, chessman_t me, result_t result,
         fputc(chessman_char(board[i]), to);
 
         if (i == 2)
-            fprintf(to, "  #%d", encode_board_min(board));
+            fprintf(to, "  #%d (-> %d)", encode_board_real(board),
+                    encode_board_min(board));
         else if (inf)
         {
             if (i == 5)
@@ -326,11 +327,11 @@ result_t fdot_print_result(uint code, result_t result)
     char  *colour_table[] = { "red", "blue", "black" };
     uint fontsize_table[] = { 15, 15, 15 };
 
-/*
+
     fprintf(fdot, "%u [label=\"%u (%s)\", color=%s, fontsize=%u];\n",
             code, code, fmtresult(result),
             colour_table[result + 1], fontsize_table[result + 1]);
- */
+
     return result;
 }
 
@@ -364,7 +365,7 @@ result_t search(chessman_t me) /* 搜索走法，给出当前局面的结果
             fprintf(fdot, "%d ", *sub_board_p--);
         fputs("};\n", fdot);
     }
-    fdot_print_result(board_code, result);
+    /* fdot_print_result(board_code, result); */
 
     /* 输出棋盘 */
     draw(me, result);
@@ -432,7 +433,7 @@ void test_coding(void) /* 棋盘编码测试 */
 void test_encode(void)
 {
     chessman_t b[9];
-    b[0] = b[2] = b[3] = b[6] = b[7] = EMPTY;
+    b[0] = b[2] = b[3] = b[6] = b[7] = EMPTY; /* #7131 */
     b[1] = b[4] = b[8] = BLACK;
     b[5] = WHITE;
 
@@ -440,12 +441,7 @@ void test_encode(void)
             encode_board_real(b),
             encode_board_min(b));
     draw2(b, -1, -1, stdout, 0);
-    putchar('\n');
-    mirror(b, 0, 1, 1);
-    draw2(b, -1, -1, stdout, 0);
-    putchar('\n');
 }
-
 
 int main(int argc, char **argv)
 {
