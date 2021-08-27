@@ -261,15 +261,13 @@ void draw2(chessman_t *board, chessman_t me, result_t result,
                 fputc(chessman_char(board[i]), to);
 
                 if (i == 2)
-                        fprintf(to, "  #%d (-> %d)", encode_board_real(board),
-                                        encode_board_min(board));
-                else if (inf)
-                {
-                        if (i == 5)
-                                fprintf(to, "  轮到%c走棋", chessman_char(me));
-                        else if (i == 8)
-                                fprintf(to, "  %s", fmtresult(result));
-                }
+                        fprintf(to, "  #%d (-> %d)",
+                                encode_board_real(board),
+                                encode_board_min(board));
+                else if (inf && i == 5)
+                        fprintf(to, "  下一步：%c", chessman_char(me));
+                else if (inf && i == 8)
+                        fprintf(to, "  %s", fmtresult(result));
 
                 if ((i + 1) % 3 == 0)
                         fputc('\n', to);
