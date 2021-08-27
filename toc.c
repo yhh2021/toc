@@ -80,7 +80,9 @@ char chessman_char(chessman_t c)
 char *fmtresult(result_t r)
 {
     char *text[] = { "-lost", "0draw", "+win" };
-    return text[r+1];
+    if (0 <= r+1 && r+1 <= 2)
+        return text[r+1];
+    return 0;
 }
 
 uint encode_board_real(chessman_t *board)
@@ -343,9 +345,8 @@ result_t search(chessman_t me) /* 搜索走法，给出当前局面的结果
     struct {
         uint c;
         result_t r;
-    } sub_boards[9], *sub_board_p = sub_boards, self;
-    result_t result = LOST;
-    self.c = encode_board();
+    } sub_boards[9], *sub_board_p = sub_boards,
+      self = { encode_board(), LOST };
     memset(sub_boards, 0, sizeof sub_boards);
         /* 只要走了棋，局面的3进数编码就不可能是0
          * 所以用0代表没有数据 */
@@ -363,11 +364,14 @@ result_t search(chessman_t me) /* 搜索走法，给出当前局面的结果
             ++sub_board_p;
         }
 
+    /* 输出棋盘 */
+    draw(me, self.r);
+
     /* 输出局面关系 */
     if ((--sub_board_p)->c)
     {
         fprintf(fdot, "%d -> {", self.c);
-        fprintf(fout, "    -> ");
+        fprintf(fout, "  -> ");
         while (sub_board_p != sub_boards - 1)
         {
             uint c = (sub_board_p--)->c;
@@ -379,11 +383,8 @@ result_t search(chessman_t me) /* 搜索走法，给出当前局面的结果
     }
     /* fdot_print_self.r(self.c, self.r); */
 
-    /* 输出棋盘 */
-    draw(me, self.r);
     fputc('\n', fout);
-
-    return result;
+    return self.r;
 }
 
 result_t test_predict(void)

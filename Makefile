@@ -1,6 +1,9 @@
 all:
 	c89 toc.c -Wall
 
+ext:
+	c89 toc.c -Wall -O3 -march=native
+
 debug:
 	c89 toc.c -g
 	gdb a.out
