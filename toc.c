@@ -341,8 +341,9 @@ typedef struct {
         result_t r;
 } board_t;
 
-int board_t_cmp(const void *, const void *)
+int board_t_cmp(const void *a, const void *b)
 {
+        return memcmp(a, b, sizeof (board_t));
 }
 
 result_t search(chessman_t me)
