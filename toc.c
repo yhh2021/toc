@@ -369,15 +369,19 @@ result_t search(chessman_t me) /* 搜索走法，给出当前局面的结果
     /* 输出局面关系 */
     if (--sub_board_p != sub_boards-1)
     {
+        uint last_c = 0; /* 只要走了一步，棋盘编码就不会是0 */
         qsort(sub_boards, sub_board_p - sub_boards + 1,
               sizeof sub_boards[0], board_t_cmp); /* 排序，方便查重 */
         fprintf(fdot, "%d -> {", self.c);
         fprintf(fout, "  -> ");
         while (sub_board_p != sub_boards - 1)
         {
-            board_t *b = sub_board_p--;
+            const board_t *b = sub_board_p--;
+            if (b->c == last_c)
+                continue
             fprintf(fdot, "%d ", b->c);
             fprintf(fout, "%d%s ", b->c, fmtresult(b->r));
+            last_c = b->c;
         }
         fputs("};\n", fdot);
         fputc('\n', fout);
