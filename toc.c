@@ -339,9 +339,13 @@ result_t search(chessman_t me) /* 搜索走法，给出当前局面的结果
                                   下一着是我方走棋
                                   调用者保证目前不是终局 */
 {
-    uint i, board_code = encode_board(),
-         sub_boards[9], *sub_board_p = sub_boards;
+    uint i;
+    struct {
+        uint c;
+        result_t r;
+    } sub_boards[9], *sub_board_p = sub_boards, self;
     result_t result = LOST;
+    self.c = encode_board();
     memset(sub_boards, 0, sizeof sub_boards);
         /* 只要走了棋，局面的3进数编码就不可能是0
          * 所以用0代表没有数据 */
@@ -351,24 +355,32 @@ result_t search(chessman_t me) /* 搜索走法，给出当前局面的结果
         if (!board[i])
         {
             board[i] = me;
-            *sub_board_p++ = encode_board();
-            result = max(result, predict(me));
-                /* 这里predict可能会再调用search */
+            sub_board_p->c = encode_board();
+            sub_board_p->r = predict(me);
             board[i] = EMPTY;
+                /* 这里predict可能会再调用search */
+            self.r = max(self.r, sub_board_p->r);
+            ++sub_board_p;
         }
 
     /* 输出局面关系 */
-    if (*--sub_board_p)
+    if ((--sub_board_p)->c)
     {
-        fprintf(fdot, "%d -> {", board_code);
+        fprintf(fdot, "%d -> {", self.c);
+        fprintf(fout, "    -> ");
         while (sub_board_p != sub_boards - 1)
-            fprintf(fdot, "%d ", *sub_board_p--);
+        {
+            uint c = (sub_board_p--)->c;
+            fprintf(fdot, "%d ", c);
+            fprintf(fout, "%d ", c);
+        }
         fputs("};\n", fdot);
+        fputc('\n', fout);
     }
-    /* fdot_print_result(board_code, result); */
+    /* fdot_print_self.r(self.c, self.r); */
 
     /* 输出棋盘 */
-    draw(me, result);
+    draw(me, self.r);
     fputc('\n', fout);
 
     return result;
